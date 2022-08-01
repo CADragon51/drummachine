@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<JUCERPROJECT id="JQylaa" name="DrumMachine" projectType="guiapp" useAppConfig="0"
+              addUsingNamespaceToJuceHeader="0" displaySplashScreen="1" jucerFormatVersion="1">
+  <MAINGROUP id="ZMh72u" name="DrumMachine">
+    <GROUP id="{9396F269-76F1-D056-AC41-53C254F6A2CA}" name="Source">
+      <FILE id="LoVfEu" name="webgui.cpp" compile="1" resource="0" file="Source/webgui.cpp"/>
+      <FILE id="T5DvUx" name="Main.cpp" compile="1" resource="0" file="Source/Main.cpp"/>
+      <FILE id="tMwTDg" name="MainComponent.h" compile="0" resource="0" file="Source/MainComponent.h"/>
+      <FILE id="HFP8jt" name="MainComponent.cpp" compile="1" resource="0"
+            file="Source/MainComponent.cpp"/>
+    </GROUP>
+    <FILE id="NMuPHk" name="gfunctions.h" compile="0" resource="0" file="Source/gfunctions.h"/>
+    <FILE id="GyfLjw" name="globals.h" compile="0" resource="0" file="Source/globals.h"/>
+    <FILE id="yoITJI" name="Midigui.h" compile="0" resource="0" file="Source/Midigui.h"/>
+    <FILE id="zumMrS" name="svgdraw.h" compile="0" resource="0" file="Source/svgdraw.h"/>
+    <FILE id="xdYsIL" name="webcb.h" compile="0" resource="0" file="Source/webcb.h"/>
+    <FILE id="Lnig1j" name="webdata.h" compile="0" resource="0" file="Source/webdata.h"/>
+    <FILE id="jAA8sY" name="webgui.h" compile="0" resource="0" file="Source/webgui.h"/>
+    <FILE id="V4wZdl" name="webinter.h" compile="0" resource="0" file="Source/webinter.h"/>
+  </MAINGROUP>
+  <JUCEOPTIONS JUCE_STRICT_REFCOUNTEDPOINTER="1"/>
+  <EXPORTFORMATS>
+    <VS2019 targetFolder="Builds/VisualStudio2019">
+      <CONFIGURATIONS>
+        <CONFIGURATION isDebug="1" name="Debug" targetName="DrumMachine"/>
+        <CONFIGURATION isDebug="0" name="Release" targetName="DrumMachine"/>
+      </CONFIGURATIONS>
+      <MODULEPATHS>
+        <MODULEPATH id="juce_core" path="J:/JUCE/modules"/>
+        <MODULEPATH id="juce_data_structures" path="J:/JUCE/modules"/>
+        <MODULEPATH id="juce_events" path="J:/JUCE/modules"/>
+        <MODULEPATH id="juce_graphics" path="J:/JUCE/modules"/>
+        <MODULEPATH id="juce_gui_basics" path="J:/JUCE/modules"/>
+        <MODULEPATH id="juce_audio_devices" path="J:/JUCE/modules"/>
+        <MODULEPATH id="juce_audio_basics" path="J:/JUCE/modules"/>
+        <MODULEPATH id="juce_audio_formats" path="J:/JUCE/modules"/>
+        <MODULEPATH id="juce_audio_processors" path="J:/JUCE/modules"/>
+        <MODULEPATH id="juce_gui_extra" path="J:/JUCE/modules"/>
+        <MODULEPATH id="juce_audio_utils" path="J:/JUCE/modules"/>
+      </MODULEPATHS>
+    </VS2019>
+    <VS2022 targetFolder="Builds/VisualStudio2022">
+      <CONFIGURATIONS>
+        <CONFIGURATION isDebug="1" name="Debug" targetName="DrumMachine"/>
+        <CONFIGURATION isDebug="0" name="Release" targetName="DrumMachine"/>
+      </CONFIGURATIONS>
+      <MODULEPATHS>
+        <MODULEPATH id="juce_core" path="J:/JUCE/modules"/>
+        <MODULEPATH id="juce_data_structures" path="J:/JUCE/modules"/>
+        <MODULEPATH id="juce_events" path="J:/JUCE/modules"/>
+        <MODULEPATH id="juce_graphics" path="J:/JUCE/modules"/>
+        <MODULEPATH id="juce_gui_basics" path="J:/JUCE/modules"/>
+        <MODULEPATH id="juce_audio_devices" path="J:/JUCE/modules"/>
+        <MODULEPATH id="juce_audio_basics" path="J:/JUCE/modules"/>
+        <MODULEPATH id="juce_audio_formats" path="J:/JUCE/modules"/>
+        <MODULEPATH id="juce_audio_processors" path="J:/JUCE/modules"/>
+        <MODULEPATH id="juce_gui_extra" path="J:/JUCE/modules"/>
+        <MODULEPATH id="juce_audio_utils" path="J:/JUCE/modules"/>
+      </MODULEPATHS>
+    </VS2022>
+  </EXPORTFORMATS>
+  <MODULES>
+    <MODULE id="juce_audio_basics" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_audio_devices" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_audio_formats" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_audio_processors" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_audio_utils" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_core" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_data_structures" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_events" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_graphics" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_gui_basics" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_gui_extra" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+  </MODULES>
+</JUCERPROJECT>
