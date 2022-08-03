@@ -137,24 +137,68 @@ public:
 					myMidi->previewMIDI(frec, true);
 
 			}
-
+			sRand = Random(0);
 			StringArray shuf;
 			shuf.addTokens(shuffleDef, " ", "\"");
 			shufflemax = shuf.size();
+			int group = -1;
 			for (int i = 0; i < shufflemax; i++)
 			{
-				StringArray part;
-				part.addTokens(shuf[i], "*", "\"");
-				if (part.size() > 1)
-				{
-					shufflelength[i] = part[0].getIntValue();
-					shufflebars[i] = (part[1].getIntValue() - 1) * 4;
-				}
-				else
+				int plx = shuf[i].indexOf("+");
+				int asx = shuf[i].indexOf("*");
+				int grx = shuf[i].indexOf(">");
+				int cpx = shuf[i].indexOf(")");
+				int opx = shuf[i].indexOf("(");
+				shuffleinc[i] = 0;
+				shufflerand[i] = 0;
+				shufflegrp[i] = -1;
+				if (opx != -1)
+					group = i;
+				Range< int >rr(1, (const int)shuf[i].getIntValue());
+
+				if (plx == -1 && asx == -1 && grx == -1)
 				{
 					shufflelength[i] = 1;
-					shufflebars[i] = (part[0].getIntValue() - 1) * 4;
+					shufflebars[i] = (shuf[i].getIntValue() - 1) * 4;
+					shufflegrp[i] = group;
+					continue;
 				}
+				if (plx == -1 && asx != -1 && grx == -1)
+				{
+					shufflelength[i] = shuf[i].getIntValue();
+					shufflebars[i] = (shuf[i].substring(asx+1).getIntValue() - 1) * 4;
+					continue;
+				}
+				if (plx != -1 && asx != -1 && grx == -1)
+				{
+					shufflelength[i] = shuf[i].getIntValue();
+					shufflebars[i] = (shuf[i].substring(asx + 1).getIntValue() - 1) * 4;
+					if(opx!=-1)
+						shufflebars[i] = (shuf[i].substring(opx +1).getIntValue() - 1) * 4;
+					shuffleinc[i] = shuf[i].substring(plx + 1).getIntValue();
+					continue;
+				}
+				if (plx != -1 && asx == -1 && grx != -1)
+				{
+					shufflelength[i] = sRand.nextInt(rr);
+					shufflerand[i] = shuf[i].getIntValue();
+					shufflebars[i] = (shuf[i].substring(grx + 1).getIntValue() - 1) * 4;
+					if (opx != -1)
+						shufflebars[i] = (shuf[i].substring(opx + 1).getIntValue() - 1) * 4;
+					shuffleinc[i] = shuf[i].substring(plx + 1).getIntValue();
+					continue;
+				}
+				if (plx == -1 && asx == -1 && grx != -1)
+				{
+					shufflelength[i] = sRand.nextInt(rr);
+					shufflerand[i] = shuf[i].getIntValue();
+					shufflebars[i] = (shuf[i].substring(grx + 1).getIntValue() - 1) * 4;
+					if (opx != -1)
+						shufflebars[i] = (shuf[i].substring(opx + 1).getIntValue() - 1) * 4;
+					continue;
+				}
+				if (cpx != -1)
+					group =-1;
 
 			}
 			shufflebarsidx = 0;
@@ -420,9 +464,7 @@ void onButtonRelease(int button, int id)
 	}
 	else if (id == sipm)
 	{
-		isShuffle = false;
 		//        FDBG("transport " + SN(button - id * 10));
-		isShuffle = false;
 		transport = button - id * 10;
 		myMidi->runtime = myMidi->evs->start;
 		nextEvent = firstEvent;
@@ -432,7 +474,8 @@ void onButtonRelease(int button, int id)
 			isShuffle = true;
 		case RECORDING:
 			MidiEvent::starttime = 0;
-
+			shufflebarsidx=0;
+			shufflelengthidx = 0;
 			playSeq = true;
 			lastEvent = 0;
 			clickc = 0;
@@ -461,6 +504,7 @@ void onButtonRelease(int button, int id)
 		break;
 		case PLAYING:
 		case REPEAT:
+			isShuffle = false;
 			midiTimer->startTimer(1);
 			webgui.setMonitor(sbp, greenled);
 			break;

@@ -476,7 +476,7 @@ public:
 							}
 						}
 						onEvents[ev->note] = events.size();
-						// DBG(ev->eventnr << " " << ev->note << " " << onEvents[ev->note] << " " << barnr);
+						//						DBG(ev->start << " " << ev->note << " "  << barnr);
 						events.add(ev);
 						if (note < minNote)
 							minNote = note;
@@ -618,6 +618,7 @@ public:
 
 		if (beatend)  //|| newpatternc > -1
 		{
+			static int barinc = 1;
 			//       FDBG("bl " + SN(bl) + " " + SN(patternc) + " " + SN(beatCount[actpattern]) + SB(beatend));
 			if (!editMode)
 			{
@@ -628,25 +629,39 @@ public:
 					if (shufflebarsidx >= shufflelength[shufflelengthidx])
 					{
 						shufflebarsidx = 0;
-						shufflelengthidx++;
+						shufflelengthidx+=barinc;
+						if (shuffleinc[shufflelengthidx] == 0)
+							barinc = 1;
+						else
+						{
+							Range< int >rr(1, (const int)shuffleinc[shufflelengthidx]);
+							barinc = sRand.nextInt(rr);
+
+						}
 						// DBG(shufflebarsidx << " " << shufflelengthidx);
 						if (shufflelengthidx >= shufflemax)
 						{
 							shufflelengthidx = 0;
 							// DBG(shufflebarsidx << " " << shufflelengthidx);
 						}
+						if (shufflerand[shufflelengthidx] > 0)
+						{
+							Range< int >rr(1, (const int)shufflerand[shufflelengthidx]);
+							shufflelength[shufflelengthidx] = sRand.nextInt(rr);
+						}
+
 					}
 					actpattern = shufflebars[shufflelengthidx];
 				}
 				// DBG(shufflebarsidx << " " << shufflelengthidx << " " << actpattern << " " << shufflelength[shufflelengthidx]);
 				patternc = actpattern * maxticks;
 
-				if (newpatternc > -1)
-				{
-					patternc = newpatternc;
-					actpattern = patternc / maxticks;
-					newpatternc = -1;
-				}
+					if (newpatternc > -1)
+					{
+						patternc = newpatternc;
+						actpattern = patternc / maxticks;
+						newpatternc = -1;
+					}
 				bl = patternc + beatCount[actpattern] * maxticks;
 			}
 			else
@@ -680,7 +695,7 @@ public:
 				continue;
 			//       FDBG(patternc);
 			byte midinr = minstr[v];
-//			// DBG("v " << v << " pc " << patternc << " vel " << ptest << " nr " << minstr[v]);
+			//			// DBG("v " << v << " pc " << patternc << " vel " << ptest << " nr " << minstr[v]);
 			if (midinr == 0)
 			{
 				continue;
@@ -757,7 +772,7 @@ public:
 				int del = (time - pos * tempo) / tf;
 				if (del > delaypattern[as])
 					delaypattern[as] = del;
-	//			// DBG("v " << v << " as " << as << " vel " << vel);
+				//			// DBG("v " << v << " as " << as << " vel " << vel);
 
 			}
 		}
