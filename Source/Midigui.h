@@ -644,7 +644,12 @@ public:
 							shufflelengthidx = 0;
 							// DBG(shufflebarsidx << " " << shufflelengthidx);
 						}
-						if (shufflerand[shufflelengthidx] > 0)
+						if (shufflegrp[shufflelengthidx] > -1)
+						{
+							shufflelength[shufflelengthidx] = shufflelength[shufflegrp[shufflelengthidx]];
+
+						}
+						else if (shufflerand[shufflelengthidx] > 0)
 						{
 							Range< int >rr(1, (const int)shufflerand[shufflelengthidx]);
 							shufflelength[shufflelengthidx] = sRand.nextInt(rr);
