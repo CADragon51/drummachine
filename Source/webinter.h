@@ -35,7 +35,7 @@ void websetup(MidiHandler* midip)
 	openFile = webgui.addButtons(btns7[5], &onButtonRelease, 50, mbase, "f");
 
 	webgui.setMonitor(men, "Hello, me TMS");
-
+	cliitem = -1;
 
 	if (selitem == -1)
 		selitem = webgui.addStringDisplay("<t3>TMS</t3>", 0, 0, "f", "nomonitor");
@@ -51,10 +51,14 @@ void websetup(MidiHandler* midip)
 	{
 		movenext[i] = webgui.addButtons(moveBtn[i], &onButtonRelease, mx[i], my[i], "f");  //  set Block
 	}
+	bpmret = webgui.addNumericDisplay("BPM",0, 300, "f", "nomonitor");
+	webgui.setMonitor(bpmret,BPM);
+	bpmguiid = webgui.addInputAnalog("BPM", 60, 240,BPM, &onSlider, 0, 300, "title", "hor");
 
 	drumopt = webgui.addOptions("instr", 128, perc,  &onOptionSelect, 10, 910, 36, "f");
 
-	patternidt = webgui.addStringDisplay("Pattern #", 400, 480, "f");
+	sdlidt = webgui.addStringDisplay("Pattern #", 220, 60, "f");
+	patternidt = webgui.addStringDisplay("Term", 400, 480, "f");
 	ccpatternidt = webgui.addStringDisplay("Pattern #", 250, 500, "f");
 	ccvpatternidt = webgui.addStringDisplay("Pattern #", 550, 500, "f");
 	for (int i = 0; i < 4; i++)

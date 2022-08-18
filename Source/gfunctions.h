@@ -34,7 +34,16 @@ byte getVoice(byte note)
 //	DBG(SN(note) << SN(voices[note]) << SN(minstr[voices[note]]));
 	return voices[note];
 }
-
+void saveSDL(juce::String file)
+{
+	juce::String ret = "";
+	char sep = ',';
+	File frec = File(File::getSpecialLocation(File::SpecialLocationType::userDocumentsDirectory).getFullPathName() +
+		File::getSeparatorString() + "TMS" + File::getSeparatorString() + file + ".sdl");
+	frec.deleteFile();
+	frec.create();
+	frec.appendText(shuffleDef);
+}
 juce::String saveDrum(juce::String file, bool show = false)
 {
 	juce::String ret = "";
@@ -150,7 +159,7 @@ void cleanpat(int l)
 		////        FDBG(SN(p) + SN(beatCount[p]));
 		patvoicehigh[p] = -1;
 		patvoicelow[p] = 255;
-		for (int s = p * maxticks; s < (p + 1) * maxticks; s++)
+		for (int s = p * maxticks; s < (p + 1) * maxticks&&s<MAXPAT*maxticks; s++)
 		{
 			delaypattern[s] = 0;
 			for (int v = 0; v < MAXVOI; v++)
@@ -299,6 +308,12 @@ int midi2Line(String pline)
 		ires[i] = rr[i].getIntValue();
 	}
 	return  rr.size();
+}
+void loadSDL(String file)
+{
+	File frec = File(file);
+	shuffleDef= frec.loadFileAsString();
+	shuffleDef = shuffleDef.removeCharacters("\r");
 }
 void loadDrum(String file)
 {

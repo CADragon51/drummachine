@@ -50,6 +50,7 @@
 #pragma once
 using namespace juce;
 #include "globals.h"
+
 //==============================================================================
 struct MidiDeviceListEntry : ReferenceCountedObject
 {
@@ -263,7 +264,7 @@ public:
 	{
 		MidiMessage* tempMessage;
 		static bool first = true;
-		float p = (runtime - firstEventstart) / lt;
+		float p = (runtime - firstEventstart - 0.5) / (lt - 0.5);
 		int ip = p * 100;
 		static int lastip = -1;
 		runtime += 0.001;
@@ -293,9 +294,10 @@ public:
 					vel = 0;
 				bool playnote = !soloPlay || voicestat[np[note]] == 1 || voicestat[np[note]] == 5;
 				bool mute = voicestat[np[note]] == 2;
+				float amp = voiceamp[np[note]];
 				if (voicestat[np[note]] >= 4)
-					note = voicenote[np[note]];
-				float vv = voiceamp[np[note]] * (vel / 127.0);
+					note = voicenote[note];
+				float vv = amp * (vel / 127.0);
 				if (vv > 1)
 					vv = 1;
 				if (playnote && !mute)
@@ -308,7 +310,7 @@ public:
 			handleSilence();
 			return false;
 		}
-		if (lastip != ip)
+		if (lastip != ip && ip >= 0)
 		{
 			String progress = "<meter id=\"file\" value=\"" + String(p) + "\"> 32% </meter>";
 			webgui.setMonitor(progidt, progress);
@@ -332,13 +334,7 @@ public:
 	}
 
 
-	double lt;
-	int midilastEvent;
-	double runtime;
-	double startruntime;
-	float beatfactor;
-	float barlength;
-	int tr;
+
 	int setMidi(File midiFile)
 	{
 		if (!midiFile.exists())
@@ -396,9 +392,6 @@ public:
 		firstEventstart = notes->getStartTime();
 		return notes->getNumEvents();
 	}
-	noteshow* evs;
-	double firstEventstart = -1;
-	const MidiMessageSequence* notes;
 
 	int previewMIDI(juce::File pfile, bool renew)
 	{
@@ -443,7 +436,8 @@ public:
 						continue;
 					if (np[note] == -1)
 					{
-						np[note] = nx++;
+						np[note] = nx;
+						np2note[nx++] = note;
 					}
 					int vel = tempMessage->getVelocity();
 					int barnr = (tempMessage2->getTimeStamp() / tx) / 4;
@@ -520,13 +514,13 @@ public:
 			int y = 80 + nx * 20;
 			if (y > ly)
 				ly = y;
-			voicenote[nx] = i;
+			voicenote[i] = np2note[nx];
 			voiceamp[nx] = 1.0;
 			midiVoiceID[nx] = webgui.addButtons(String(i), &onButtonRelease, 190, y + 740, "f", "hide");
 			midiNoteID[nx] = webgui.addStringDisplay("vel", 170, y + 740, "f");
 			midiVelID[nx] = webgui.addStringDisplay("vel", 140, y + 740, "f");
 
-			webgui.setMonitor(midiNoteID[nx], String(voicenote[nx]));
+			webgui.setMonitor(midiNoteID[nx], String(voicenote[i]));
 			webgui.setMonitor(midiVelID[nx], String(voiceamp[nx]));
 			midiNoteID[nx];
 
@@ -603,8 +597,12 @@ public:
 	}
 	void playPattern(void)
 	{
+		static int barend = -1;
+		static int shuman = 0;
+		static int ehuman = 0;
 		if (actpattern < 0)
 		{
+			actpattern = 0;
 			metTimer->stopTimer();
 			return;
 		}
@@ -613,6 +611,22 @@ public:
 
 		if (editMode)
 			bl = (actpattern + 1) * maxticks;
+		static Shuffle actShuffle = *shuffleArr[lengthidx];
+		if (isShuffle)
+		{
+			if (actShuffle.barend >= 0)
+			{
+				barend = actShuffle.barend * 4;
+			}
+			if (actShuffle.ehuman > 0)
+			{
+				ehuman = actShuffle.ehuman;
+			}
+		}
+		if (barend > 0)
+		{
+			bl = (barend + actpattern) * maxticks;
+		}
 		bool beatend = patternc >= bl;
 		//		// DBG(patternc << " " << bl << " " << (actpattern + 1) * maxticks);
 
@@ -624,49 +638,83 @@ public:
 			{
 				if (isShuffle)
 				{
-					shufflebarsidx++;
-					// DBG(shufflebarsidx);
-					if (shufflebarsidx >= shufflelength[shufflelengthidx])
+					barsidx++;
+					if (barsidx >= actShuffle.length)
 					{
-						shufflebarsidx = 0;
-						shufflelengthidx+=barinc;
-						if (shuffleinc[shufflelengthidx] == 0)
+						barsidx = 0;
+						lengthidx += barinc;
+						//						DBG(barsidx << " " << actShuffle.length << actShuffle.debug());
+						if (actShuffle.inc == 0)
 							barinc = 1;
 						else
 						{
-							Range< int >rr(1, (const int)shuffleinc[shufflelengthidx]);
+							Range< int >rr(1, (const int)actShuffle.inc + 1);
 							barinc = sRand.nextInt(rr);
 
 						}
-						// DBG(shufflebarsidx << " " << shufflelengthidx);
-						if (shufflelengthidx >= shufflemax)
+						int agx = actShuffle.gotos.size();
+						int ll = lengthidx;
+						if (agx > 0)
 						{
-							shufflelengthidx = 0;
-							// DBG(shufflebarsidx << " " << shufflelengthidx);
+							Range< int >rr(0, (const int)(agx));
+							lengthidx = actShuffle.gotos[sRand.nextInt(rr)];
+	//						DBG(ll << " next " << lengthidx << " " << agx);
 						}
-						if (shufflegrp[shufflelengthidx] > -1)
+						// DBG(shufflebarsidx << " " << lengthidx);
+						if (lengthidx >= shufflemax)
 						{
-							shufflelength[shufflelengthidx] = shufflelength[shufflegrp[shufflelengthidx]];
+							lengthidx = 0;
+							int agx = actShuffle.gotos.size();
+							if (agx > 0)
+							{
+								Range< int >rr(0, (const int)(agx));
+								lengthidx = actShuffle.gotos[sRand.nextInt(rr)];
+//								DBG(ll << " next " << lengthidx << " " << agx);
+							}
+							// DBG(shufflebarsidx << " " << lengthidx);
+						}
+						if (lengthidx >= shufflemax)
+						{
+							lengthidx = 0;
+						}
+						actShuffle = *shuffleArr[lengthidx];
+						if (actShuffle.bars < 0 && actShuffle.options.size() == 0)
+						{
+							DBG(actShuffle._idx);
+						}
+						if (actShuffle.bars < 0&& actShuffle.options.size()>0)
+						{
+							int last = std::min(actShuffle.options.size(), actShuffle.srandend + 1);
+							Range< int >rr((const int)actShuffle.srandstart, (const int)last);
+							int optidx = sRand.nextInt(rr);
+							actShuffle = *actShuffle.options[optidx];
+	//						DBG(actShuffle.bars);
+						}
+						webgui.setMonitor(sdlidt, String(lengthidx) + " " + actShuffle.term);
+						if (actShuffle.grp > -1)
+						{
+							actShuffle.length = shuffleArr[actShuffle.grp]->length;
 
 						}
-						else if (shufflerand[shufflelengthidx] > 0)
+						else if (actShuffle.srandend > 0)
 						{
-							Range< int >rr(1, (const int)shufflerand[shufflelengthidx]);
-							shufflelength[shufflelengthidx] = sRand.nextInt(rr);
+							Range< int >rr((const int)actShuffle.srandstart, (const int)actShuffle.srandend + 1);
+							actShuffle.length = sRand.nextInt(rr);
+//							DBG(lengthidx << " length " << actShuffle.length << " " << actShuffle.srandend + 1);
 						}
 
 					}
-					actpattern = shufflebars[shufflelengthidx];
+					actpattern = actShuffle.bars;
 				}
-				// DBG(shufflebarsidx << " " << shufflelengthidx << " " << actpattern << " " << shufflelength[shufflelengthidx]);
+				// DBG(shufflebarsidx << " " << lengthidx << " " << actpattern << " " << shufflelength[lengthidx]);
 				patternc = actpattern * maxticks;
 
-					if (newpatternc > -1)
-					{
-						patternc = newpatternc;
-						actpattern = patternc / maxticks;
-						newpatternc = -1;
-					}
+				if (newpatternc > -1)
+				{
+					patternc = newpatternc;
+					actpattern = patternc / maxticks;
+					newpatternc = -1;
+				}
 				bl = patternc + beatCount[actpattern] * maxticks;
 			}
 			else
@@ -674,9 +722,26 @@ public:
 				patternc = (actpattern)*maxticks;
 			}
 		}
-
+		static int opc = 0;
 		patcnt = patternc / maxticks;
-		Time::waitForMillisecondCounter(630.0 * delaypattern[patternc] / 120);
+		if (isShuffle && opc != patcnt)
+		{
+			//			DBG(SN(barsidx)+ SN(bl)+ SN(patternc)+actShuffle.debug());
+			opc = patcnt;
+		}
+		float delay = 0;
+		if (isShuffle && ehuman > 0)
+		{
+			Range< int >rr(shuman, (const int)ehuman);
+			delay = sRand.nextInt(rr);
+		}
+		delay += 5.25 * delaypattern[patternc];
+		if (delay > 0)
+		{
+			double now = Time::getMillisecondCounter();
+			Time::waitForMillisecondCounter(now + delay);
+			//			DBG(Time::getMillisecondCounter() - now << " " << delaypattern[patternc]<<" "<<delay);
+		}
 		if (ccpattern[patternc] > 0)
 		{
 			byte cc = ccpattern[patternc];
@@ -694,7 +759,7 @@ public:
 
 		for (int v = patvoicelow[aa]; v < patvoicehigh[aa] + 1 && v < MAXVOI; v++)
 		{
-			short ptest = seqpattern[patternc][v];
+			float ptest = seqpattern[patternc][v];
 			//       FDBG("voice " + SN(v) + SN(ptest));
 			if (ptest == -1)
 				continue;
@@ -705,16 +770,30 @@ public:
 			{
 				continue;
 			}
-			byte midivel = ptest;
+			float midivel = ptest / 127.0;
+			if (isShuffle && midivel > 0 && actShuffle.vel > 0 && (actShuffle.vnote == midinr || actShuffle.vel != 1.0 && actShuffle.vnote == -1))
 			{
-				handleNoteOn(0, 10, midinr, midivel / 127.0);
-				if (transport == RECORDING)
-				{
-					if (lastEvent == 0)
-						MidiEvent::starttime = 0;
-					sequences[lastEvent++].init(0x90, midinr, midivel, 9);
-				}
+				if (actShuffle.vel < 1)
+					midivel *= actShuffle.vel;
+				if (actShuffle.vel > 1)
+					midivel = actShuffle.vel / 127.0;
+				if (midivel > 1)
+					midivel = 1;
+
 			}
+			if (actShuffle.onote > -1 && midinr == actShuffle.onote)
+			{
+				midinr = actShuffle.rnote;
+
+			}
+			handleNoteOn(0, 10, midinr, midivel);
+			if (transport == RECORDING)
+			{
+				if (lastEvent == 0)
+					MidiEvent::starttime = 0;
+				sequences[lastEvent++].init(0x90, midinr, midivel * 127, 9);
+			}
+
 		}
 	}
 
@@ -733,6 +812,7 @@ public:
 		lastColor++;
 		double  time;
 		double t4 = beatfactor;
+		t4 = 1;
 		tempo = tempo / 12;
 		float tf = tempo / 8;
 		for (int a = actpattern, b = np; a < actpattern + np; a++, b--)
@@ -763,6 +843,8 @@ public:
 					continue;
 				if (vel == 0)
 					as++;
+	//			if (vel)
+	//				DBG(note << " " << v);
 				int lim = MAXPAT * maxticks;
 				if (as >= lim)
 					break;
@@ -812,6 +894,16 @@ public:
 		for (int s = fe; s < midilastEvent; s++)
 		{
 			tempMessage = &(notes->getEventPointer(s)->message);
+#if 1
+			if (tempMessage->isNoteOnOrOff())
+			{
+				byte note = tempMessage->getNoteNumber();
+//				DBG(s << " " << voicenote[note] << " " << note);
+				if (voicenote[note] > 0)
+					note = voicenote[note];
+				tempMessage->setNoteNumber(note);
+			}
+#endif
 			double time = (tempMessage->getTimeStamp());
 			tempMessage->setTimeStamp(time - ftime);
 			sequence.addEvent(*tempMessage);
@@ -831,6 +923,8 @@ public:
 	}
 	void loadMIDI(juce::File file, int np, int v)
 	{
+		if (np > MAXPAT)
+			return;
 		FileInputStream source(file);
 		lastMidiFile = file;
 		SMF.readFrom(source);
@@ -858,8 +952,10 @@ public:
 		}
 
 		res[1] = dir.getParentDirectory();
+		res[2] = dir.getParentDirectory();
 		dirres[1] = "..";
-		int n = 2;
+		dirres[2] = "&#x1F516;";
+		int n = 3;
 		String ename;
 		int nx = dir.getNumberOfChildFiles(3);
 		if (search.length() == 0 || nx == 0)
@@ -879,7 +975,7 @@ public:
 				ename = f.getFileName().toLowerCase();
 				if (!f.isDirectory())
 				{
-					if (f.getFileExtension() != ".mid" && f.getFileExtension() != ".drm")
+					if (f.getFileExtension() != ".mid" && f.getFileExtension() != ".drm" && f.getFileExtension() != ".sdl")
 						continue;
 					String size = String(f.getSize());
 					if (f.getFileExtension() == ".mid")
@@ -981,6 +1077,11 @@ public:
 			update_pat(true);
 
 		}
+		if (file.getFileExtension() == ".sdl")
+		{
+			loadSDL(file.getFullPathName());
+
+		}
 
 	}
 	int sizeMIDI(File file, int& v)
@@ -1038,6 +1139,382 @@ public:
 		midilastEvent = notes->getNumEvents();
 		return bcc;
 	}
+	void decodeSd(void)
+	{
+		StringArray sdl;
+		sdl.addTokens(shuffleDef, "\n", "\"");
+		SDLapp = "";
+		String SDLcode = "";
+		for (int i = 0; i < sdl.size(); i++)
+		{
+			String line = sdl[i];
+			String left, right;
+			int bc = line.indexOf(" ");
+			if (bc > -1 && line.startsWith("#"))
+			{
+				left = line.substring(0, bc);
+				right = line.substring(bc + 1);
+				StringArray macros;
+				macros.addTokens(right, " ", "\"");
+				right = "";
+				for (int m = 0; m < macros.size(); m++)
+				{
+					StringArray para;
+					para.addTokens(macros[m], "()", "\"");
+					if (defMap.contains(para[0]))
+					{
+						SDLDef res = defMap[para[0]];
+						if (para.size() < 3)
+							right += right.replace(para[0], res.right);
+						else
+						{
+							right += res.right + para[2];
+	//						DBG(macros[m] << " " << para[2]);
+							String pp = para[1];
+							StringArray paras;
+							paras.addTokens(pp, ",", "\"");
+							int p1 = paras.size();
+							int p2 = res.paras.size();
+							for (int p = 0; p < p1 && p1 == p2; p++)
+							{
+//								DBG(res.paras[p] << " " << paras[p]);
+								right = right.replace(res.paras[p], paras[p]);
+							}
+						}
+					}
+					else
+					{
+						if (!m)
+							right = macros[m];
+						else
+							right += " " + macros[m];
+					}
+				}
+				SDLDef newDef;
+				String key = newDef.init(left, right);
+				defMap.set(key, newDef);
+
+			}
+			if (line.startsWith("sd"))
+			{
+				StringArray stmnt;
+				stmnt.addTokens(line, " ", "\"");
+
+				for (int l = 1; l < stmnt.size(); l++)
+				{
+					String term = stmnt[l];
+					StringArray index;
+					index.addTokens(term, "[]", "\"");
+					if (index.size() > 1)
+					{
+						if (defMap.contains(index[0]))
+						{
+							SDLDef res = defMap[index[0]];
+							if (term.indexOf("-") == -1)
+							{
+								int ix = index[1].getIntValue();
+								StringArray arr;
+								arr.addTokens(res.right, " ", "\"");
+								if (ix < arr.size())
+									term = arr[ix];
+							}
+							else
+							{
+								term = index[0] + "&" + index[1];
+								SDLapp += " "+term;
+								SDLcode += "`" + stmnt[l];
+								continue;
+							}
+
+						}
+					}
+					StringArray para;
+					para.addTokens(term, "()", "\"");
+					SDLcode += "`" + stmnt[l];
+					if (defMap.contains(para[0]))
+					{
+						SDLDef res = defMap[para[0]];
+						if (para.size() > 1)
+						{
+							String pp = para[1];
+							StringArray paras;
+							paras.addTokens(pp, ",", "\"");
+							String next = res.right;
+							int p1 = paras.size();
+							int p2 = res.paras.size();
+							for (int p = 0; p < p1 && p1 == p2; p++)
+							{
+//								DBG(res.paras[p] << " " << paras[p]);
+								next = next.replace(res.paras[p], paras[p]);
+							}
+//							DBG(term << " " << para[0] << " " << res.right << "=>" << next);
+							SDLapp += " " + next;
+						}
+						else
+							SDLapp += " " + res.right;
+
+					}
+					else
+						SDLapp += " " + para[0];
+
+
+				}
+			}
+		}
+		StringArray shuf;
+		shuf.addTokens(SDLapp, " ", "\"");
+		StringArray code;
+		code.addTokens(SDLcode, "`", "\"");
+		isShuffle = false;
+//		DBG(SDLapp);
+//		DBG(SDLcode);
+
+		mylabels.clear();
+		for (int j = 0; j < 2; j++)
+		{
+			shuffleArr.clear();
+			group = -1;
+
+			for (int i = 0; i < shuf.size(); i++)
+			{
+				String term = shuf[i];
+				//			DBG(code[i] << " " << term);
+				if (term.length() < 1)
+					continue;
+				int t = shuffleArr.size();
+				int obx = term.indexOf("{");
+				if (obx > -1)
+				{
+					barend = 1;
+					if (term.length() > 1)
+						barend = term.substring(1).getIntValue();
+					continue;
+				}
+				int hbx = term.indexOf("@");
+				if (hbx > -1)
+				{
+					ehuman = 0;
+					if (term.length() > 1)
+						ehuman = term.substring(1).getIntValue();
+					int mx = term.indexOf("-");
+					if (mx > -1)
+					{
+						shuman = ehuman;
+						ehuman = term.substring(mx + 1).getIntValue();
+					}
+					continue;
+				}
+				int cbx = term.indexOf("}");
+				if (cbx > -1)
+				{
+					barend = 0;
+					continue;
+				}
+				int cox = term.indexOf(":");
+				if (cox > -1)
+				{
+					int t = shuffleArr.size();
+					if (j == 0)
+						mylabels.set(term.replace(":", ""), String(t));
+//					DBG(term << " " << t);
+					continue;
+				}
+				int gox = term.indexOf("!");
+				t = shuffleArr.size();
+				if (gox > -1)
+				{
+					if (j == 1 && t > 0)
+					{
+						StringArray arr;
+						arr.addTokens(term.substring(1), "^", "\"");
+						Shuffle* lS = shuffleArr.getLast();
+						lS->gotos.clear();
+						for (int n = 0; n < arr.size(); n++)
+						{
+							if (mylabels.containsKey(arr[n]))
+							{
+								lS->gotos.add(mylabels.getValue(arr[n], "0").getIntValue());
+								//							DBG(lS->gotos.size() << " " << arr[n] << " " << mylabels.getValue(arr[n], "0"));
+							}
+						}
+					}
+					continue;
+				}
+				parseShuffle(term, j, code[i], t);
+			}
+		}
+		barsidx = 0;
+		lengthidx = 0;
+		shufflemax = this->shuffleArr.size();
+
+	}
+	Shuffle* parseShuffle(String term, int j, String code, int t)
+	{
+		Shuffle* myshuffle = new Shuffle(t);
+		if(j!=2)
+		shuffleArr.add(myshuffle);
+		t = shuffleArr.size();
+//		if(j==1)
+//			DBG(t << " " << term << " " << code << " " << myshuffle->_idx);
+		myshuffle->barend = barend;
+		myshuffle->ehuman = ehuman;
+		myshuffle->shuman = shuman;
+		myshuffle->term = term + " " + code;
+		int ulx = term.indexOf("_");
+		int mix = term.indexOf("-");
+		int plx = term.indexOf("+");
+		int asx = term.indexOf("*");
+		int grx = term.indexOf(">");
+		int cpx = term.indexOf(")");
+		int opx = term.indexOf("(");
+		int slx1 = term.indexOf("/");
+		int slx2 = term.lastIndexOf("/");
+		int bax1 = term.indexOf("|");
+		int bax2 = term.lastIndexOf("|");
+		int ampersix = term.lastIndexOf("&");
+		int n1 = -1;
+		int n2 = -1;
+		int nv = -1;
+		float vv = 1;
+		if (slx1 != -1)
+		{
+			n1 = term.substring(slx1 + 1).getIntValue();
+			if (slx2 > slx1)
+				n2 = term.substring(slx2 + 1).getIntValue();
+
+		}
+		if (bax1 != -1)
+		{
+			vv = term.substring(bax1 + 1).getFloatValue();
+			if (bax2 > bax1)
+			{
+				nv = vv;
+				vv = term.substring(bax2 + 1).getFloatValue();
+			}
+
+		}
+		myshuffle->inc = 0;
+		myshuffle->srandstart = 0;
+		myshuffle->srandend = 0;
+		myshuffle->onote = n1;
+		myshuffle->rnote = n2;
+		myshuffle->vnote = nv;
+		myshuffle->vel = vv;
+
+		myshuffle->grp = -1;
+		if (opx != -1)
+			group = this->shuffleArr.size() - 1;
+		if (grx > -1)
+		{
+			myshuffle->srandend = term.getIntValue();
+			if (mix > -1)
+			{
+				myshuffle->srandstart = term.getIntValue();
+				myshuffle->srandend = term.substring(mix + 1).getIntValue();
+			}
+			Range< int >rr((const int)myshuffle->srandstart, (const int)myshuffle->srandend);
+			myshuffle->length = sRand.nextInt(rr);
+		}
+		if (plx == -1 && asx == -1 && grx == -1)
+		{
+			myshuffle->length = 1;
+			myshuffle->bars = (term.getIntValue() - 1) * 4;
+			myshuffle->grp = group;
+
+		}
+		if (ampersix != -1)
+		{
+			String left = term.substring(0,ampersix);
+			String right = term.substring(ampersix+1);
+			SDLDef res = defMap[left];
+			StringArray options;
+			options.addTokens(res.right," ","\"");
+			for (int o = 0; o < options.size(); o++)
+			{
+				String Option = options[o];
+				Shuffle* shu = parseShuffle(Option,2, left, t);
+				myshuffle->options.add(shu);
+			}
+			mix=right.indexOf("-");
+			myshuffle->srandstart = right.getIntValue();
+			myshuffle->srandend = right.substring(mix + 1).getIntValue();
+//			DBG(term << " " << left << " " << right << " " << myshuffle->options.size() << " " << myshuffle->term);
+		}
+
+		if (plx == -1 && asx != -1 && grx == -1)
+		{
+			myshuffle->length = term.getIntValue();
+			myshuffle->bars = (term.substring(asx + 1).getIntValue() - 1) * 4;
+
+		}
+		if (plx != -1 && asx != -1 && grx == -1)
+		{
+			myshuffle->length = term.getIntValue();
+			myshuffle->bars = (term.substring(asx + 1).getIntValue() - 1) * 4;
+			if (opx != -1)
+				myshuffle->bars = (term.substring(opx + 1).getIntValue() - 1) * 4;
+			myshuffle->inc = term.substring(plx + 1).getIntValue();
+
+		}
+		if (plx != -1 && asx == -1 && grx != -1)
+		{
+			myshuffle->bars = (term.substring(grx + 1).getIntValue() - 1) * 4;
+			if (opx != -1)
+				myshuffle->bars = (term.substring(opx + 1).getIntValue() - 1) * 4;
+			myshuffle->inc = term.substring(plx + 1).getIntValue();
+
+		}
+		if (plx == -1 && asx == -1 && grx != -1)
+		{
+			myshuffle->bars = (term.substring(grx + 1).getIntValue() - 1) * 4;
+			if (opx != -1)
+				myshuffle->bars = (term.substring(opx + 1).getIntValue() - 1) * 4;
+
+		}
+		if (cpx != -1)
+			group = -1;
+		//		myshuffle->debug(shuffleArr.size() - 1, i, 0);
+		if (ulx > -1&&j!=2)
+		{
+			ulx = term.indexOf("_");
+			int f = myshuffle->bars / 4;
+			int l = term.substring(ulx + 1).getIntValue() - f - 1;
+			while (l-- > 0)
+			{
+				Shuffle* nshuffle = new Shuffle(this->shuffleArr.size());
+				this->shuffleArr.add(nshuffle);
+				t = shuffleArr.size();
+	//			DBG(t << " " << term << " " << nshuffle->_idx);
+
+				nshuffle->copy(*myshuffle);
+				nshuffle->bars = ++f * 4;
+				//					nshuffle->debug(shuffleArr.size() - 1, i, l);
+			}
+		}
+//		if (myshuffle->bars < 0&&myshuffle->options.size()==0)
+//			DBG(term);
+
+		return myshuffle;
+	}
+
+	int barend = -1;
+	int ehuman = 0;
+	int shuman = 0;
+	int group = -1;
+
+	noteshow* evs;
+	double firstEventstart = -1;
+	const MidiMessageSequence* notes;
+	double lt;
+	int midilastEvent;
+	double runtime;
+	double startruntime;
+	float beatfactor;
+	float barlength;
+	int tr;
+	Array <Shuffle*> shuffleArr;
+	HashMap <String, SDLDef> defMap;
+	StringPairArray mylabels;
 private:
 	//==============================================================================
 	struct MidiDeviceListBox : public ListBox,
@@ -1296,6 +1773,7 @@ private:
 	//==============================================================================
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MidiHandler)
 };
+
 void onMessage(juce::String value, int id)
 {
 	if (id == cli)
@@ -1318,30 +1796,36 @@ void onMessage(juce::String value, int id)
 			outString = "<textarea class=\"scrollabletextbox\" name=\"note\" rows=10 cols=140>" + dirout + "</textarea>";
 			setDisplay();
 		}
-		else if (starts == "sd")
+		else if (starts == "bp" && argc >1)
 		{
-			shuffleDef = value.substring(3);
-			StringArray shuf;
-			shuf.addTokens(shuffleDef, " ", "\"");
-			shufflemax = shuf.size();
-			for (int i = 0; i < shufflemax; i++)
-			{
-				StringArray part;
-				part.addTokens(shuf[i], "*", "\"");
-				if (part.size() > 1)
-				{
-					shufflelength[i] = part[0].getIntValue();
-					shufflebars[i] = (part[1].getIntValue() - 1) * 4;
-				}
-				else
-				{
-					shufflelength[i] = 1;
-					shufflebars[i] = (part[0].getIntValue() - 1) * 4;
-				}
 
-			}
-			shufflebarsidx = 0;
-			shufflelengthidx = 0;
+			BPM = argv[1].getFloatValue();
+		}
+		else if (starts == "sd" && argv[1] == "run")
+		{
+
+			midiTimer->myMidi->decodeSd();
+		}
+		else if (starts == "sd" && argv[1] == "edit")
+		{
+			/*****
+			* Shuffe Definition Language:
+				<rinc>:='+'<inc>
+				<bar>:=[<repeat '*']<bar number>[rinc]
+				<random term>:=[<rstart>-]<repeat>'>'<bar>[<rinc>]
+				<random group>:=[<rstart>-]<repeat>'>(' [<bar number>' ']*')
+				<shuffle def>:=[<bar>' ']* [<random term>' ']* [<random group>' ']*
+			***/
+			webgui.remove(cli);
+			if (cliitem > 0)
+				webgui.remove(cliitem);
+			String sd = shuffleDef.replaceCharacter('\n', '&');
+			sd = sd.replaceCharacter(',', ';');
+			oldshuffleDef = shuffleDef;
+			cliitem = webgui.addInputString("SDL ", &onMessage, 0, 150, "title", "edit", sd);
+
+			//			shuffleDef = value.substring(3);
+			//			midiTimer->myMidi->decodeSd();
 			return;
 		}
 		else if (starts == "lo")
@@ -1418,6 +1902,47 @@ void onMessage(juce::String value, int id)
 		else if (starts == "sh")
 		{
 			showData(argc, argv);
+		}
+		else if (starts == "sa")
+		{
+			saveSDL(argv[1]);
+		}
+	}
+	if (id == cliitem)
+	{
+		bool decode = false;
+		if (value.startsWith("F1"))
+		{
+			shuffleDef = oldshuffleDef;
+			webgui.remove(cliitem);
+			return;
+		}
+		if (value.startsWith("Esc"))
+		{
+			decode = true;
+			value = value.substring(3);
+			shuffleDef = value;
+			saveSDL("TMS");
+			File frec = File(File::getSpecialLocation(File::SpecialLocationType::userDocumentsDirectory).getFullPathName() +
+				File::getSeparatorString() + "TMS" + File::getSeparatorString() + "TMS.ini");
+			frec.deleteFile();
+			frec.create();
+			var lastm = lastMidiFile.getFullPathName();
+			TMSsettings.setValue("lm", lastm);
+			TMSsettings.setValue("hs", history);
+			TMSsettings.setValue("mo", midiTimer->myMidi->moindex);
+			TMSsettings.setValue("mi", midiTimer->myMidi->miindex);
+			TMSsettings.setValue("fd", favdir.joinIntoString("`"));
+			TMSsettings.setValue("sd", value);
+
+			std::unique_ptr<XmlElement> xm = TMSsettings.createXml("TMS");
+			xm->writeToFile(frec, "");
+		}
+		shuffleDef = value;
+		if (decode)
+		{
+			webgui.remove(cliitem);
+			midiTimer->myMidi->decodeSd();
 		}
 	}
 

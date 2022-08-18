@@ -125,6 +125,7 @@ public:
 			{
 				XmlDocument xmlstr(frec.loadFileAsString());
 				TMSsettings.restoreFromXml(*xmlstr.getDocumentElement());
+				BPM = TMSsettings.getDoubleValue("bp");
 				String lm = TMSsettings.getValue("lm");
 				shuffleDef = TMSsettings.getValue("sd");
 				history = TMSsettings.getValue("hs");
@@ -138,73 +139,7 @@ public:
 
 			}
 			sRand = Random(0);
-			StringArray shuf;
-			shuf.addTokens(shuffleDef, " ", "\"");
-			shufflemax = shuf.size();
-			int group = -1;
-			for (int i = 0; i < shufflemax; i++)
-			{
-				int plx = shuf[i].indexOf("+");
-				int asx = shuf[i].indexOf("*");
-				int grx = shuf[i].indexOf(">");
-				int cpx = shuf[i].indexOf(")");
-				int opx = shuf[i].indexOf("(");
-				shuffleinc[i] = 0;
-				shufflerand[i] = 0;
-				shufflegrp[i] = -1;
-				if (opx != -1)
-					group = i;
-				Range< int >rr(1, (const int)shuf[i].getIntValue());
-
-				if (plx == -1 && asx == -1 && grx == -1)
-				{
-					shufflelength[i] = 1;
-					shufflebars[i] = (shuf[i].getIntValue() - 1) * 4;
-					shufflegrp[i] = group;
-					continue;
-				}
-				if (plx == -1 && asx != -1 && grx == -1)
-				{
-					shufflelength[i] = shuf[i].getIntValue();
-					shufflebars[i] = (shuf[i].substring(asx+1).getIntValue() - 1) * 4;
-					continue;
-				}
-				if (plx != -1 && asx != -1 && grx == -1)
-				{
-					shufflelength[i] = shuf[i].getIntValue();
-					shufflebars[i] = (shuf[i].substring(asx + 1).getIntValue() - 1) * 4;
-					if(opx!=-1)
-						shufflebars[i] = (shuf[i].substring(opx +1).getIntValue() - 1) * 4;
-					shuffleinc[i] = shuf[i].substring(plx + 1).getIntValue();
-					continue;
-				}
-				if (plx != -1 && asx == -1 && grx != -1)
-				{
-					shufflelength[i] = sRand.nextInt(rr);
-					shufflerand[i] = shuf[i].getIntValue();
-					shufflebars[i] = (shuf[i].substring(grx + 1).getIntValue() - 1) * 4;
-					if (opx != -1)
-						shufflebars[i] = (shuf[i].substring(opx + 1).getIntValue() - 1) * 4;
-					shuffleinc[i] = shuf[i].substring(plx + 1).getIntValue();
-					continue;
-				}
-				if (plx == -1 && asx == -1 && grx != -1)
-				{
-					shufflelength[i] = sRand.nextInt(rr);
-					shufflerand[i] = shuf[i].getIntValue();
-					shufflebars[i] = (shuf[i].substring(grx + 1).getIntValue() - 1) * 4;
-					if (opx != -1)
-						shufflebars[i] = (shuf[i].substring(opx + 1).getIntValue() - 1) * 4;
-					continue;
-				}
-				if (cpx != -1)
-					group =-1;
-
-			}
-			shufflebarsidx = 0;
-			shufflelengthidx = 0;
-	//		isShuffle = true;
-
+			midiTimer->myMidi->decodeSd();
 
 #if JUCE_ANDROID || JUCE_IOS
 			setFullScreen(true);
@@ -226,12 +161,13 @@ public:
 			frec.deleteFile();
 			frec.create();
 			var lastm = lastMidiFile.getFullPathName();
+			TMSsettings.setValue("bp", BPM);
 			TMSsettings.setValue("lm", lastm);
 			TMSsettings.setValue("hs", history);
 			TMSsettings.setValue("mo", midiTimer->myMidi->moindex);
 			TMSsettings.setValue("mi", midiTimer->myMidi->miindex);
 			TMSsettings.setValue("fd", favdir.joinIntoString("`"));
-			TMSsettings.setValue("sd",shuffleDef);
+			TMSsettings.setValue("sd", shuffleDef);
 
 			std::unique_ptr<XmlElement> xm = TMSsettings.createXml("TMS");
 			xm->writeToFile(frec, "");
@@ -390,7 +326,7 @@ void onButtonRelease(int button, int id)
 				{
 					metison = true;
 					isShuffle = false;
-					mettime = 2000 * 120.0 / 120;
+					mettime = 2000 * 120.0 / BPM;
 					metTimer->startTimer(mettime / 48);
 					playSeq = true;
 				}
@@ -424,7 +360,7 @@ void onButtonRelease(int button, int id)
 		if (metison)
 		{
 			clickc = 0;
-			mettime = 2000 * 120.0 / 120;
+			mettime = 2000 * 120.0 / BPM;
 			metTimer->stopTimer();
 			patternc = actpattern * maxticks;
 			metTimer->startTimer(mettime / 48);
@@ -455,9 +391,11 @@ void onButtonRelease(int button, int id)
 		}
 		inimport = false;
 		//       FDBG("clear? " + SB(cleared));
-		if (notfile)
+//		if (notfile)
 		{
 			webgui.remove(cli);
+			webgui.remove(cliitem);
+
 			cli = webgui.addInputString("Command ", &onMessage, 0, 250, "title", "control", history);
 		}
 		notfile = !notfile;
@@ -474,12 +412,12 @@ void onButtonRelease(int button, int id)
 			isShuffle = true;
 		case RECORDING:
 			MidiEvent::starttime = 0;
-			shufflebarsidx=0;
-			shufflelengthidx = 0;
+			barsidx = 0;
+			lengthidx = 0;
 			playSeq = true;
 			lastEvent = 0;
 			clickc = 0;
-			mettime = 2000 * 120.0 / 120;
+			mettime = 2000 * 120.0 / BPM;
 			metTimer->stopTimer();
 			patternc = actpattern * maxticks;
 			metTimer->startTimer(mettime / 48);
@@ -576,7 +514,7 @@ void showVoiceline(void)
 		int y = 80 + ix * 20;
 		if (selvoice[ix])
 		{
-			DBG(ix << " " << " " << voicestat[ix]);
+//			DBG(ix << " " << " " << voicestat[ix]);
 			if (voicestat[ix] == 0)
 				vnl += showLine(0, y, 1220, y, 3, "aqua");
 			if (voicestat[ix] == 1)
@@ -622,6 +560,7 @@ void onOptionSelect(int option, int id)
 		{
 			if (selvoice[v])
 			{
+				int note = np2note[v];
 				if (voicestat[v] < 4 && option != 0)
 				{
 					voicestat[v] += 4;
@@ -640,8 +579,11 @@ void onOptionSelect(int option, int id)
 					}
 					showVoiceline();
 				}
-				voicenote[v] = option;
-				webgui.setMonitor(midiNoteID[v], String(voicenote[v]));
+				//				np[note]
+				int preopt = voicenote[note];
+				voicenote[note] = option;
+				voicenote[preopt] = option;
+				webgui.setMonitor(midiNoteID[v], String(voicenote[note]));
 				return;
 			}
 		}
@@ -706,6 +648,11 @@ void onOptionSelect(int option, int id)
 		{
 			int n = midiTimer->myMidi->loadDirectory(res[0], "*.mid;*.drm", nx);
 			diropts(n);
+			return;
+		}
+		if (opt.contains("&#x1F516;"))
+		{
+			favdir.add(res[0].getFullPathName());
 			return;
 		}
 		File entry = res[option];
@@ -787,13 +734,13 @@ void doButtons(int i)
 		break;
 	case 5:
 		startOver = true;
-		startvoice--;
+		startvoice++;
 	case 4:
 		startOver = true;
 		if (i == 4)
 		{
 			if (startvoice != -1)
-				startvoice++;
+				startvoice--;
 		}
 		if (startvoice < -1)
 			startvoice = -1;
@@ -885,7 +832,7 @@ void doButtons(int i)
 
 		metison = false;
 		transport = STOPPED;
-		int bc = 4 * (lastMidi - startMidi + 1);
+		int bc = 4 * (zoomEnd - zoomStart);
 		midiTimer->myMidi->loadClip(bc);
 		if (editMode)
 			actpattern += bc;
@@ -964,6 +911,7 @@ void doButtons(int i)
 		frec.deleteFile();
 		frec.create();
 		var lastm = lastMidiFile.getFullPathName();
+		TMSsettings.setValue("bp", BPM);
 		TMSsettings.setValue("lm", lastm);
 		TMSsettings.setValue("hs", history);
 		TMSsettings.setValue("mo", midiTimer->myMidi->moindex);
@@ -975,6 +923,7 @@ void doButtons(int i)
 	}
 	break;
 	case 16:
+	{
 		int n = favdir.size();
 		for (int i = 0; i < n; i++)
 		{
@@ -986,7 +935,26 @@ void doButtons(int i)
 				res[i] = File(favdir[i]);
 		}
 		diropts(n);
-		break;
+	}
+	break;
+	case 20:
+		if (cliitem > 0)
+		{
+			webgui.remove(cliitem);
+			cliitem = -1;
+			return;
+		}
+		shuffleDef = shuffleDef.replace("  ", " ");
+		shuffleDef = shuffleDef.replace("\n\n", "\n");
+
+		String sd = shuffleDef.replaceCharacter('\n', '&');
+		sd = sd.replaceCharacter(',', ';').replace("&&","&");
+		oldshuffleDef = shuffleDef;
+		cliitem = webgui.addInputString("SDL ", &onMessage, 0, 200, "title", "edit", sd);
+
+		//			shuffleDef = value.substring(3);
+		//			midiTimer->myMidi->decodeSd();
+		return;
 	}
 	update_pat(true);
 	return;

@@ -30,6 +30,9 @@ short synthstate = 0;
 short idt, idtg, sbp, bp, synthmen[3], men, target, gra, extId[30], chr, ledout, semp, semm, octp, octm, idt1, idt2, showstat, idjx, idjy, cped2, cfsr, csw;
 short ipm, isb, iob, iab1, iab2, itb, imb, js2, z1, z2, zone, smen, imbb, sipm, home, openFile, metro, backmetro;
 short delsav = 0, selback = 0, prenameinp = 0, predelsave = 0, mapvers = 0, mapcom = 0;
+int bpmret;
+int bpmguiid;
+
 float val = 0;
 unsigned int localPort = 6123;
 bool forward = true;
@@ -84,10 +87,10 @@ juce::String btnss[] = {
 	"&#x1F501;",
 //	"&#x1F5AB;" ,
     "&#x1f500;"};
-#define MAXMOVE 20
+#define MAXMOVE 21
 short movenext[MAXMOVE]; //ledpin = 13, inleds[9], outleds[9], inbuts[9], outbuts[9], 
-int mx[MAXMOVE] = { 40,100,100,100,100,100,0,30,0,60,0,50,50,0,50,0 ,140,0,50,180};
-int my[MAXMOVE] = { 600,500,550,100,450,600,550,550,600,550,780,780,820,820,860,860,100,730,730,100 };
+int mx[MAXMOVE] = { 40,100,100,100,100,100,0,30,0,60,0,50,50,0,50,0 ,140,0,50,180,0};
+int my[MAXMOVE] = { 600,500,550,100,450,600,550,550,600,550,780,780,820,820,860,860,100,730,730,100,140 };
 juce::String moveBtn[MAXMOVE] = {
 "&#x1F5D1;",//setBlock
 "&#x23EA;",//next
@@ -109,6 +112,7 @@ juce::String moveBtn[MAXMOVE] = {
 "&#x1F3B9;",//Midi convert
 "&#x21AA;",//insert
 "&#x1F516;",//add fav
+"&#x2699;", // edit 
 };
 int drumopt;
 #endif

@@ -110,9 +110,9 @@ void Webgui::update()
 				fq = bitidx;
 			else if (fq > 0 && c == '`')
 				eq = bitidx;
-			if (c == ',')
+			if (c == ','&&fq==0)
 				commas[commidx++] = bitidx;
-			if (c == '\n')
+			if (c == '\n'&&eq>fq)
 				bitstream[bitidx] = 0;
 		}
 		//		Serial.print(c);
@@ -158,7 +158,7 @@ void Webgui::_analyzeStream()
 
 	int sid = para[0].getIntValue();
 	////DBG("sid " + SN(sid));
-	if (bitidx < 100)
+//	if (bitidx < 100)
 	{
 		if (eq)
 			bitstream[eq] = 0;
@@ -168,8 +168,8 @@ void Webgui::_analyzeStream()
 			value = String(bitstream + commas[0] + 1);
 		//		//DBG("val " + value);
 	}
-	else
-		value = "###";
+//	else
+//		value = "###";
 	//	//DBG(value);
 	this->_callAction(sid,value);
 }

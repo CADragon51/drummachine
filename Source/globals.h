@@ -58,7 +58,7 @@ unsigned char  midifile[1000000];
 
 int midiptr = 0;
 #define HAS_MORE_BYTES 0x80
-MidiFile SMF,SMF2;
+MidiFile SMF, SMF2;
 
 class MidiEvent
 {
@@ -73,8 +73,8 @@ public:
 		if (starttime == 0)
 			starttime = Time::getMillisecondCounterHiRes();
 		_time = Time::getMillisecondCounterHiRes() - starttime;
-				//		_id = id;
-				//		FDBG(show());
+		//		_id = id;
+		//		FDBG(show());
 	}
 	juce::String show()
 	{
@@ -107,20 +107,85 @@ short lastEvent = 0;
 short transport = STOPPED;
 int nextEvent = 0;
 int firstEvent = 0;
-short shufflebars[128];
-short shufflelength[128]; 
-short shuffleinc[128];
-short shufflerand[128]; 
-short shufflegrp[128];
-short shufflebarsidx = 0; 
-short shufflelengthidx = 0;
+class SDLDef
+{
+public:
+	SDLDef() {
+		;
+	}
+	String  init(String _left, String _right) {
+		left = _left;
+		right = _right;
+		StringArray para;
+		para.addTokens(left, "()", "\"");
+		if (para.size() > 1)
+		{
+			String pp = para[1];
+			paras.addTokens(pp, ",", "\"");
+		}
+		return para[0].substring(1);
+	}
+	String left;
+	String right;
+	StringArray paras;
+};
+
+class Shuffle
+{
+public:
+	Shuffle(int idx) { _idx = idx; }
+	void copy(Shuffle org)
+	{
+		bars = org.bars;
+		length = org.length;
+		inc = org.inc;
+		barend = org.barend;
+		srandstart = org.srandstart;
+		srandend = org.srandend;
+		grp = org.grp;
+		onote = org.onote;
+		rnote = org.rnote;
+		shuman = org.shuman;
+		ehuman = org.ehuman;
+		term = org.term;
+		vel = org.vel;
+		vnote = org.vnote;
+	}
+	String  debug(void)
+	{
+		String ret = SN(_idx) + term + " " + SN(bars) + SN(length) + SN(inc) + SN(barend);
+		return(ret);
+	}
+	short bars;
+	short length;
+	short inc;
+	short barend;
+	short srandstart;
+	short srandend;
+	short grp;
+	short vnote = -1;
+	short onote = -1;
+	short rnote = -1;
+	short shuman = 0;
+	short ehuman = 0;
+	float vel = 1.0;
+	Array <int> gotos;
+	String term;
+	int _idx = -1;
+	Array <Shuffle *> options;
+};
+short barsidx = 0;
+short lengthidx = 0;
+
+
 short shufflemax = 0;
 bool isShuffle = false;
-String shuffleDef = "1 3*2 2*4 5 2*6 8 2*10 6";
+String shuffleDef;
+String oldshuffleDef;
+String SDLapp ;
 Random sRand;
 MidiEvent sequences[100000];
 extern void webloop(void);
-extern void playPattern(void);
 class  MidiHandler;
 class HGTimer : public juce::Timer, public juce::ReferenceCountedObject
 {
@@ -205,7 +270,7 @@ short xpos[12], firstnote;
 #define MCP4725_ADDR 0x60
 bool foundserver = false;
 class MidiHandler;
-MidiHandler *myMidi = 0;
+MidiHandler* myMidi = 0;
 unsigned char _channel;
 int baseNoteID[128];
 signed char basenote = 0;
@@ -219,7 +284,7 @@ int reso = 1;
 
 bool incoming[3];
 float outgoing[7];
-short onoff = 0;																													 
+short onoff = 0;
 
 short scalebase = 0;
 bool scend = false;
@@ -233,12 +298,13 @@ juce::String patfiles[MAXPAT];
 
 short triggerNote[128];
 short acttrigger[MAXPAT];
-short actbeatID[MAXPAT]; 
+short actbeatID[MAXPAT];
 short midiActbeatID[1024];
-short midiVoiceID[32]; 
-short midiVelID[32]; 
+short midiVoiceID[32];
+short midiVelID[32];
 short midiNoteID[32];
 int np[128];
+int np2note[128];
 bool soloPlay = false;
 struct noteshow {
 	int note;
@@ -266,12 +332,13 @@ bool startOver = false;
 int numq = 1;
 float metpart = 1;
 float mettime = 2000000;
+float BPM= 120;
 bool metison = false;
 bool metisback = false;
 short voicestat[32];
-short voicenote[32];
+short voicenote[128];
 float voiceamp[32];
-bool selvoice[32] = { false,false,false,false,false,false,false,false, false,false,false,false, false,false,false,false, false,false,false,false, false,false,false,false, false,false,false,false, false,false,false,false};
+bool selvoice[32] = { false,false,false,false,false,false,false,false, false,false,false,false, false,false,false,false, false,false,false,false, false,false,false,false, false,false,false,false, false,false,false,false };
 short patternc = -1, newpatternc = -1;
 short patcnt = 0;
 int actpattern = 0;
@@ -279,7 +346,7 @@ int actMidibeat = -1;
 int startpattern = -1;
 int lastpattern = -1;
 int startMidi = -1;
-int lastMidi= -1;
+int lastMidi = -1;
 short seqpattern[MAXPAT * maxticks][MAXVOI];
 short delaypattern[MAXPAT * maxticks];
 short velpattern[MAXPAT * maxticks][MAXVOI];
@@ -303,7 +370,7 @@ StringArray favdir;
 short beatlength = 4;
 // juce::String pout = "";
 bool beatstate = false;
-int keyidt, beatidt, ccidt, nltidt[4],progidt,beatnrid,beatline,voiceline;
+int keyidt, beatidt, ccidt, nltidt[4], progidt, beatnrid, beatline, voiceline;
 PropertySet TMSsettings;
 short mbase = 100, ledbase = mbase + 40, sbase = 200 + 35, tbase = sbase + 15, fbase = tbase + 40, xbase = fbase + 20, base5 = xbase + 80, base6 = base5 + 20, base7 = base6 + 30, base8 = base7 + 50, base9 = base8 + 50, base10 = base9 + 50;
 int mtarget = 0;
@@ -326,7 +393,7 @@ int patternidt = 0;
 int patternidt2[4];
 int ccpatternidt = 0;
 int ccvpatternidt = 0;
-
+int sdlidt = 0;
 juce::String coloring[6] = {
    "cyan",
    "#66CDAA",

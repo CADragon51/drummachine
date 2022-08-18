@@ -38,7 +38,7 @@ void update_pat(bool scroll = true)
 	showStatus(actpattern, scroll);
 
 	int ypos = 500;
-	webgui.setMonitor(patternidt, " Pattern #" + juce::String(actpattern + zerobase));
+	webgui.setMonitor(patternidt, " Bar #" + juce::String(actpattern / 4 + zerobase) + "." + String(actpattern % 4 + zerobase));
 	for (int i = 0; i < maxticks; i++)
 		seqswitch[i] = ccpattern[actpattern * maxticks + i] > 0;
 	// ccpattern[actpattern * maxticks + i] > 0;
@@ -113,7 +113,7 @@ void setDisplay()
 
 	if (cliitem > 0)
 		webgui.remove(cliitem);
-	cliitem = webgui.addStringDisplay("cli", 0,200, "f", "nomonitor");
+	cliitem = webgui.addStringDisplay("cli", 0, 200, "f", "nomonitor");
 
 	if (ol < block)
 		webgui.setMonitor(cliitem, outString);
@@ -138,21 +138,7 @@ void setDisplay()
 	cleared = true;
 	addedDisplay = true;
 }
-void setBPM(int argc, juce::String* argv)
-{
-	mettime = 2000000 * 120.0 / 120;
-	//            if (metison)
-	clickc = 0;
-	beatlength = argv[2].getIntValue();
-	//  metTimer.end();
-	  //          if (metison)
-	{
-		playSeq = true;
 
-		//        metTimer.begin(playPattern, mettime / 48);
-		patternc = -1;
-	}
-}
 void clearPat(int from, int to)
 {
 
@@ -213,201 +199,166 @@ void clearPat(void)
 
 void saveData(int argc, juce::String* argv)
 {
-#if 0
-	if (argc > 2 && argv[1] == "drm")
-	{
-		//        saveDrum(argv[2]);
-		return;
-	}
-	if (argc > 1)
-	{
-		juce::String pname = argv[1];
-		FDBG("Saving " + pname);
-		int lE = lastEvent;
-
-		if (argv[1].indexOf(".mid") > -1 && lE > 0)
-		{
-			seqFile = pname;
-			if (SD.exists(pname.c_str()))
-			{
-				SD.remove(pname.c_str());
-				//    if(debug==1)DBG("ini deleted");
-			}
-			File frec = SD.open(pname.c_str(), FILE_WRITE);
-			if (frec)
-			{
-				createMidiFile();
-				int delta = 0;
-				int lasttime = 0;
-
-				//            FDBG("midi " + SN(midiptr));
-				for (int s = 0; s < lE; s++)
-				{
-					delta = sequences[s]._time - lasttime;
-					//                FDBG(" " + SB(sequences[s]._event) + " delta " + SN(delta) + " " + SN(midiptr-22));
-					writeToFile(sequences[s]._event + sequences[s]._channel, sequences[s]._note, sequences[s]._velocity, delta);
-					lasttime = sequences[s]._time;
-				}
-				setTrackLength(midiptr - 14);
-				Serial.printf("\n%04x ", 0);
-				for (int i = 0; i < midiptr; i++)
-				{
-					Serial.printf("%02x ", midifile[i]);
-					if (i % 16 == 15)
-						Serial.printf("\n%04x ", i + 1);
-				}
-				Serial.println();
-				frec.write(midifile, midiptr);
-				frec.close();
-			}
-		}
-#endif
 
 }
-	juce::String outarea = "<textarea class=\"scrollabletextbox\" name=\"note\" rows=10 cols=40>";
-	void showData(int argc, juce::StringArray argv)
+juce::String outarea = "<textarea class=\"scrollabletextbox\" name=\"note\" rows=10 cols=40>";
+void showData(int argc, juce::StringArray argv)
+{
+	if (argc < 2)
+		return;
+	juce::String event = "";
+	if (argv[1].indexOf("seq") > -1)
 	{
-		if (argc < 2)
+		event = "step time event note velocity~";
+		for (int s = 0; s < lastEvent; s++)
+		{
+			event += SN(s) + " " + sequences[s].show() + "~";
+		}
+		//           FDBG(out);
+	}
+	if (argv[1].indexOf("drm") > -1)
+	{
+		event = saveDrum("", true);
+		FDBG(event);
+	}
+	if (argv[1].indexOf("sd") > -1)
+	{
+		event = SDLapp;
+	}
+	outString = outarea + event + "</textarea>";
+	int ol = outString.length();
+	setDisplay();
+}
+void procVoice(juce::String proc, int from, int to)
+{
+	if (proc == "cp")
+	{
+		FDBG("copy voice from " + SN(from) + SN(to));
+		for (int i = startpattern * maxticks; i < actpattern * maxticks; i++)
+		{
+			seqpattern[i][to] = seqpattern[i][from];
+		}
+	}
+	if (proc == "mv")
+	{
+		FDBG("move voice from " + SN(from) + SN(to));
+		for (int i = startpattern * maxticks; i < actpattern * maxticks; i++)
+		{
+			seqpattern[i][to] = seqpattern[i][from];
+			seqpattern[i][from] = -1;
+		}
+}
+	if (proc == "sw")
+	{
+		FDBG("swap voice from " + SN(from) + SN(to));
+		for (int i = startpattern * maxticks; i < actpattern * maxticks; i++)
+		{
+			short sw = seqpattern[i][to];
+			seqpattern[i][to] = seqpattern[i][from];
+			seqpattern[i][from] = sw;
+		}
+	}
+	if (proc == "rm")
+	{
+		FDBG("delete voice from " + SN(from) + SN(to));
+		for (int i = startpattern * maxticks; i < actpattern * maxticks; i++)
+		{
+			seqpattern[i][from] = -1;
+		}
+	}
+	actpattern = startpattern;
+	update_pat(false);
+	}
+juce::String mos = "";
+//  juce::String outString;
+
+
+
+void onButtonClick(int button, int id)
+{
+	FDBG(juce::String(id) + F(" button was clicked") + " " + juce::String(button));
+
+	refresh = true;
+}
+class DrumTimer;
+
+int backState = 0;
+extern void websetup(void);
+//	extern DrumTimer::Ptr metTimer;
+
+void onSlider(float value, int id)
+{
+	if (id == bpmguiid)
+	{
+		BPM = value;
+		webgui.setMonitor(bpmret, BPM);
+		if (metison)
+		{
+			mettime = 2000 * 120.0 / BPM;
+			metTimer->stopTimer();
+			metTimer->startTimer(mettime / 48);
+		}
+
+	}
+}
+
+void onSwitches(bool* value, int id)
+{
+	FDBG("New switch status: " + SN(id) + " " + SN(value[0] ? "on" : "off"));
+	//    if (menuState == SETTINGS)
+	{
+		if (id == actpatid)
+		{
+			editMode = value[0];
 			return;
-		juce::String event = "";
-		if (argv[1].indexOf("seq") > -1)
-		{
-			event = "step time event note velocity~";
-			for (int s = 0; s < lastEvent; s++)
-			{
-				event += SN(s) + " " + sequences[s].show() + "~";
-			}
-			//           FDBG(out);
 		}
-		if (argv[1].indexOf("drm") > -1)
+		//       short ap = (actpattern / (beatlength));
+		if (id == ccmetid)
 		{
-			event = saveDrum("", true);
-			FDBG(event);
-		}
-		outString = outarea + event + "</textarea>";
-		int ol = outString.length();
-		FDBG(ol);
-		setDisplay();
-	}
-	void procVoice(juce::String proc, int from, int to)
-	{
-		if (proc == "cp")
-		{
-			FDBG("copy voice from " + SN(from) + SN(to));
-			for (int i = startpattern * maxticks; i < actpattern * maxticks; i++)
+			for (int i = 0; i < maxticks; i++)
 			{
-				seqpattern[i][to] = seqpattern[i][from];
+				int p = actpattern * maxticks + i;
+				//               FDBG("old cc " +SN(i)+ SN(value[i]) + " @" + SN(ccpattern[p]) + SN(ccval[p]));
+				if (value[i] && ccpattern[p] == 0)
+				{
+					ccpattern[p] = lastcc;
+					ccval[p] = lastccval;
+					//                   FDBG("set cc " + SN(value[i]) + " @" + SN(ccpattern[p]) + SN(ccval[p]));
+				}
+				else if (!value[i])
+				{
+					ccpattern[p] = 0;
+					ccval[p] = 0;
+				}
 			}
+			showCCs();
 		}
-		if (proc == "mv")
+
+		if (patvoicelow[actpattern] < MAXVOI - 4)
+			startvoice = patvoicelow[actpattern];
+
+		for (int v = 0; v < 4; v++)
 		{
-			FDBG("move voice from " + SN(from) + SN(to));
-			for (int i = startpattern * maxticks; i < actpattern * maxticks; i++)
+			if (id == metid[v])
 			{
-				seqpattern[i][to] = seqpattern[i][from];
-				seqpattern[i][from] = -1;
-			}
-		}
-		if (proc == "sw")
-		{
-			FDBG("swap voice from " + SN(from) + SN(to));
-			for (int i = startpattern * maxticks; i < actpattern * maxticks; i++)
-			{
-				short sw = seqpattern[i][to];
-				seqpattern[i][to] = seqpattern[i][from];
-				seqpattern[i][from] = sw;
-			}
-		}
-		if (proc == "rm")
-		{
-			FDBG("delete voice from " + SN(from) + SN(to));
-			for (int i = startpattern * maxticks; i < actpattern * maxticks; i++)
-			{
-				seqpattern[i][from] = -1;
-			}
-		}
-		actpattern = startpattern;
-		update_pat(false);
-	}
-	juce::String mos = "";
-	//  juce::String outString;
-
-
-
-	void onButtonClick(int button, int id)
-	{
-		FDBG(juce::String(id) + F(" button was clicked") + " " + juce::String(button));
-
-		refresh = true;
-	}
-	class DrumTimer;
-
-	int backState = 0;
-	extern void websetup(void);
-	//	extern DrumTimer::Ptr metTimer;
-
-	void onSlider(float value, int id)
-	{
-
-	}
-
-	void onSwitches(bool* value, int id)
-	{
-		FDBG("New switch status: " + SN(id) + " " + SN(value[0] ? "on" : "off"));
-		//    if (menuState == SETTINGS)
-		{
-			if (id == actpatid)
-			{
-				editMode = value[0];
-				return;
-			}
-			//       short ap = (actpattern / (beatlength));
-			if (id == ccmetid)
-			{
-				for (int i = 0; i < maxticks; i++)
+				for (int i = 11; i > -1; i--)
 				{
 					int p = actpattern * maxticks + i;
-					//               FDBG("old cc " +SN(i)+ SN(value[i]) + " @" + SN(ccpattern[p]) + SN(ccval[p]));
-					if (value[i] && ccpattern[p] == 0)
-					{
-						ccpattern[p] = lastcc;
-						ccval[p] = lastccval;
-						//                   FDBG("set cc " + SN(value[i]) + " @" + SN(ccpattern[p]) + SN(ccval[p]));
-					}
-					else if (!value[i])
-					{
-						ccpattern[p] = 0;
-						ccval[p] = 0;
-					}
+					//                  FDBG("set metro " + SN(value[i]) + " @" + SN(p));
+					seqpattern[p][v + startvoice] = (value[i] ? mvelo[v + startvoice] : -1);
+					//                   if (seqpattern[p][v] > 0)
+					//                       seqpattern[p][v] = 0;
 				}
-				showCCs();
-			}
-
-			if (patvoicelow[actpattern] < MAXVOI - 4)
-				startvoice = patvoicelow[actpattern];
-
-			for (int v = 0; v < 4; v++)
-			{
-				if (id == metid[v])
-				{
-					for (int i = 11; i > -1; i--)
-					{
-						int p = actpattern * maxticks + i;
-						//                  FDBG("set metro " + SN(value[i]) + " @" + SN(p));
-						seqpattern[p][v + startvoice] = (value[i] ? mvelo[v + startvoice] : -1);
-						//                   if (seqpattern[p][v] > 0)
-						//                       seqpattern[p][v] = 0;
-					}
-					juce::String pas = pat2string(actpattern, v + startvoice);
-					juce::String r = showRhythm(pas, actpattern * 10 + v + startvoice);
-					//               FDBG("pattern " + SN(i) + "/" + SN(v) + " " + pas + " " + r);
-					//              webgui.remove(patidt[v][0]);
-					//               int ypos = 450 + (v - startvoice) * 50;
-					// patidt[v][0] = webgui.addStringDisplay("Rhythm", 1000, ypos - 10, "f");
-					webgui.setMonitor(patidt[v][0], r);
-				}
+				juce::String pas = pat2string(actpattern, v + startvoice);
+				juce::String r = showRhythm(pas, actpattern * 10 + v + startvoice);
+				//               FDBG("pattern " + SN(i) + "/" + SN(v) + " " + pas + " " + r);
+				//              webgui.remove(patidt[v][0]);
+				//               int ypos = 450 + (v - startvoice) * 50;
+				// patidt[v][0] = webgui.addStringDisplay("Rhythm", 1000, ypos - 10, "f");
+				webgui.setMonitor(patidt[v][0], r);
 			}
 		}
-
 	}
+
+}
 #endif
