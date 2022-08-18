@@ -307,7 +307,7 @@ void showStatus(int pos = actpattern, bool refresh = false)
 				wasBlock = false;
 			}
 			//      
-			if (sp >= 0 && sp < ppos)
+			if (sp >= actpattern && sp < ppos)
 			{
 				if (isBeat)
 				{

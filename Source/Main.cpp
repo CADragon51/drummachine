@@ -80,16 +80,27 @@ public:
 			clearPat();
 			metTimer = new DrumTimer(25 / 6, myMidi);
 			midiTimer = new MidiTimer(1, myMidi);
+			File frec = File(File::getSpecialLocation(File::SpecialLocationType::userDocumentsDirectory).getFullPathName() +
+				File::getSeparatorString() + "TMS" + File::getSeparatorString() + "TMS.ini");
+			String lm;
+			if (frec.exists())
+			{
+				XmlDocument xmlstr(frec.loadFileAsString());
+				TMSsettings.restoreFromXml(*xmlstr.getDocumentElement());
+				BPM = TMSsettings.getDoubleValue("bp");
+				lm = TMSsettings.getValue("lm");
+				shuffleDef = TMSsettings.getValue("sd");
+				history = TMSsettings.getValue("hs");
+				myMidi->moindex = TMSsettings.getIntValue("mo");
+				myMidi->miindex = TMSsettings.getIntValue("mi");
+				String fd = TMSsettings.getValue("fd");
+				favdir.addTokens(fd, "`", "\"");
+
+			}
 			webguiclient.waitUntilReady(true, 100);
 			webgui.connect(&webguiclient, "localhost");
-			//			favdir.add("E:/midicsv");
-			//		favdir.add(File::getSpecialLocation(File::SpecialLocationType::globalApplicationsDirectoryX86).getFullPathName() +
-			//				File::getSeparatorString() + "Toontrack" + File::getSeparatorString() + "EZDrummer" + File::getSeparatorString() + "Midi");
 			File myFile = File(File::getSpecialLocation(File::SpecialLocationType::userDocumentsDirectory).getFullPathName() +
 				File::getSeparatorString() + "TMS" + File::getSeparatorString() + "patterns.pat");
-			//			favdir.add(File::getSpecialLocation(File::SpecialLocationType::userDocumentsDirectory).getFullPathName() +
-			//				File::getSeparatorString() + "TMS");
-			//			String allfd = favdir.joinIntoString(",");
 			if (myFile.exists())
 			{
 				pwx = 0;
@@ -119,25 +130,10 @@ public:
 			update_pat(false);
 			showStatus(patcnt, true);
 			webloop();
-			File frec = File(File::getSpecialLocation(File::SpecialLocationType::userDocumentsDirectory).getFullPathName() +
-				File::getSeparatorString() + "TMS" + File::getSeparatorString() + "TMS.ini");
-			if (frec.exists())
-			{
-				XmlDocument xmlstr(frec.loadFileAsString());
-				TMSsettings.restoreFromXml(*xmlstr.getDocumentElement());
-				BPM = TMSsettings.getDoubleValue("bp");
-				String lm = TMSsettings.getValue("lm");
-				shuffleDef = TMSsettings.getValue("sd");
-				history = TMSsettings.getValue("hs");
-				myMidi->moindex = TMSsettings.getIntValue("mo");
-				myMidi->miindex = TMSsettings.getIntValue("mi");
-				String fd = TMSsettings.getValue("fd");
-				favdir.addTokens(fd, "`", "\"");
-				File frec = File(lm);
-				if (myMidi->setMidi(frec))
-					myMidi->previewMIDI(frec, true);
+			frec = File(lm);
+			if (myMidi->setMidi(frec))
+				myMidi->previewMIDI(frec, true);
 
-			}
 			sRand = Random(0);
 			midiTimer->myMidi->decodeSd();
 
@@ -917,6 +913,7 @@ void doButtons(int i)
 		TMSsettings.setValue("mo", midiTimer->myMidi->moindex);
 		TMSsettings.setValue("mi", midiTimer->myMidi->miindex);
 		TMSsettings.setValue("fd", favdir.joinIntoString("`"));
+		TMSsettings.setValue("sd", shuffleDef);
 
 		std::unique_ptr<XmlElement> xm = TMSsettings.createXml("TMS");
 		xm->writeToFile(frec, "");
